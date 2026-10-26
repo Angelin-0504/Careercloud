@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # Relational Database: PostgreSQL 16 (mirrors Amazon RDS PostgreSQL)
+  db:
+    image: postgres:16-alpine
+    container_name: careercloud_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: careercloud
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d careercloud"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend REST API Service: FastAPI + Uvicorn
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: careercloud_api
+    restart: always
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=True
+      - SECRET_KEY=careercloud-super-secret-development-key-2026
+      - DATABASE_URL=postgresql://postgres:postgrespassword@db:5432/careercloud
+      - STORAGE_TYPE=local
+      - LOCAL_STORAGE_DIR=/app/uploads/resumes
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+    ports:
+      - "8000:8000"
+    volumes:
+      - resume_storage:/app/uploads/resumes
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Frontend Single Page App: React + Vite + TypeScript + Tailwind
+  frontend:
+    image: node:20-alpine
+    container_name: careercloud_ui
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    command: sh -c "npm install && npm run dev -- --host"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  resume_storage:
