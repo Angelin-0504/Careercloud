@@ -91,7 +91,7 @@ export const ApplicantsPage: React.FC = () => {
   const handleDownloadResume = async (resumeId: number, candidateName: string) => {
     try {
       const token = localStorage.getItem('careercloud_token');
-      const response = await fetch(`/api/v1/resumes/${resumeId}/download`, {
+      const response = await fetch(api.resumes.downloadUrl(resumeId), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error('Authorized resume download failed or rejected');

@@ -1,4 +1,5 @@
-const API_BASE = '/api/v1';
+const RAW_API_URL = import.meta.env.VITE_API_URL || '';
+export const API_BASE = `${RAW_API_URL.replace(/\/+$/, '')}/api/v1`;
 
 export class ApiError extends Error {
   status: number;
@@ -159,7 +160,7 @@ export const api = {
         body: formData,
       });
     },
-    downloadUrl: (resumeId: number) => `/api/v1/resumes/${resumeId}/download`,
+    downloadUrl: (resumeId: number) => `${API_BASE}/resumes/${resumeId}/download`,
     delete: (resumeId: number) =>
       request<any>(`/resumes/${resumeId}`, {
         method: 'DELETE',

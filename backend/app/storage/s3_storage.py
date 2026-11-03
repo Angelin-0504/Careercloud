@@ -7,13 +7,15 @@ from backend.app.storage.base import StorageService
 from backend.app.config import settings
 
 class S3StorageService(StorageService):
-    """Amazon S3 object storage provider for AWS cloud production deployment."""
+    """Amazon S3 and S3-compatible object storage provider (AWS S3, Supabase Storage, MinIO)."""
 
     def __init__(self):
         self.bucket_name = settings.AWS_S3_BUCKET_NAME
         self.region = settings.AWS_REGION
         
         client_kwargs = {"region_name": self.region}
+        if settings.AWS_ENDPOINT_URL:
+            client_kwargs["endpoint_url"] = settings.AWS_ENDPOINT_URL
         if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
             client_kwargs["aws_access_key_id"] = settings.AWS_ACCESS_KEY_ID
             client_kwargs["aws_secret_access_key"] = settings.AWS_SECRET_ACCESS_KEY
@@ -25,16 +27,20 @@ class S3StorageService(StorageService):
         unique_filename = f"{uuid.uuid4().hex}{file_ext}"
         storage_key = f"resumes/{unique_filename}"
 
+        put_kwargs = {
+            "Bucket": self.bucket_name,
+            "Key": storage_key,
+            "Body": content,
+            "ContentType": content_type
+        }
+        # Standard AWS S3 supports AES256 server-side encryption; omit for custom S3 endpoints if unsupported
+        if not settings.AWS_ENDPOINT_URL:
+            put_kwargs["ServerSideEncryption"] = "AES256"
+
         try:
-            self.s3_client.put_object(
-                Bucket=self.bucket_name,
-                Key=storage_key,
-                Body=content,
-                ContentType=content_type,
-                ServerSideEncryption="AES256"
-            )
+            self.s3_client.put_object(**put_kwargs)
         except ClientError as e:
-            raise RuntimeError(f"AWS S3 upload failed: {str(e)}")
+            raise RuntimeError(f"Cloud S3/Supabase upload failed: {str(e)}")
 
         return {
             "storage_key": storage_key,
